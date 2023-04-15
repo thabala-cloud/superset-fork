@@ -245,6 +245,11 @@ class DatabaseParametersSchemaMixin:  # pylint: disable=too-few-public-methods
 
     engine = fields.String(allow_none=True, description="SQLAlchemy engine to use")
     driver = fields.String(allow_none=True, description="SQLAlchemy driver to use")
+    engine_information = fields.Dict(
+        keys=fields.String(),
+        values=fields.Raw(allow_none=True),
+        description="DB-specific engine information",
+    )
     parameters = fields.Dict(
         keys=fields.String(),
         values=fields.Raw(),
@@ -276,6 +281,7 @@ class DatabaseParametersSchemaMixin:  # pylint: disable=too-few-public-methods
             or data.pop("backend", None)
         )
         driver = data.pop("driver", None)
+        adapter = data.pop("engine_information", {}).get("adapter", None)
 
         configuration_method = data.get("configuration_method")
         if configuration_method == ConfigurationMethod.DYNAMIC_FORM:
@@ -288,7 +294,7 @@ class DatabaseParametersSchemaMixin:  # pylint: disable=too-few-public-methods
                         )
                     ]
                 )
-            engine_spec = get_engine_spec(engine, driver)
+            engine_spec = get_engine_spec(engine, driver, adapter)
 
             if not hasattr(engine_spec, "build_sqlalchemy_uri") or not hasattr(
                 engine_spec, "parameters_schema"
@@ -312,6 +318,12 @@ class DatabaseParametersSchemaMixin:  # pylint: disable=too-few-public-methods
                 encrypted_extra = {}
 
             data["sqlalchemy_uri"] = engine_spec.build_sqlalchemy_uri(
+                parameters,
+                encrypted_extra,
+            )
+
+            # Some databases builds encrypted extras from parameters. like sheillagh
+            data["masked_encrypted_extra"] = engine_spec.update_encrypted_extra_from_params(
                 parameters,
                 encrypted_extra,
             )
@@ -344,6 +356,11 @@ class DatabaseValidateParametersSchema(Schema):
     id = fields.Integer(allow_none=True, description="Database ID (for updates)")
     engine = fields.String(required=True, description="SQLAlchemy engine to use")
     driver = fields.String(allow_none=True, description="SQLAlchemy driver to use")
+    engine_information = fields.Dict(
+        keys=fields.String(),
+        values=fields.Raw(allow_none=True),
+        description="DB-specific engine information",
+    )
     parameters = fields.Dict(
         keys=fields.String(),
         values=fields.Raw(allow_none=True),

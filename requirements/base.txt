@@ -5,6 +5,7 @@
 #
 #    pip-compile-multi
 #
+-r thabala.txt
 -e file:.
     # via -r requirements/base.in
 alembic==1.6.5

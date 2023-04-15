@@ -46,7 +46,6 @@ export const FormFieldOrder = [
   'password',
   'access_token',
   'http_path',
-  'database_name',
   'credentials_info',
   'service_account_info',
   'catalog',
@@ -55,6 +54,9 @@ export const FormFieldOrder = [
   'account',
   'warehouse',
   'role',
+  'owner',
+  'repository',
+  'database_name',
 ];
 
 export interface FieldPropTypes {
@@ -102,6 +104,8 @@ const FORM_FIELD_MAP = {
   warehouse: validatedInputField,
   role: validatedInputField,
   account: validatedInputField,
+  owner: validatedInputField,
+  repository: validatedInputField,
 };
 
 interface DatabaseConnectionFormProps {
@@ -148,7 +152,8 @@ const DatabaseConnectionForm = ({
   onRemoveTableCatalog,
   sslForced,
   validationErrors,
-}: DatabaseConnectionFormProps) => (
+}: DatabaseConnectionFormProps) => {
+  return (
   <Form>
     <div
       // @ts-ignore
@@ -187,7 +192,7 @@ const DatabaseConnectionForm = ({
         )}
     </div>
   </Form>
-);
+)};
 export const FormFieldMap = FORM_FIELD_MAP;
 
 export default DatabaseConnectionForm;

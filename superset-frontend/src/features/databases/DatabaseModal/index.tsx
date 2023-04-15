@@ -92,6 +92,7 @@ import {
 import ModalHeader, { DOCUMENTATION_LINK } from './ModalHeader';
 import SSHTunnelForm from './SSHTunnelForm';
 import SSHTunnelSwitch from './SSHTunnelSwitch';
+import { data } from 'jquery';
 
 const extensionsRegistry = getExtensionsRegistry();
 
@@ -613,9 +614,10 @@ const DatabaseModal: FunctionComponent<DatabaseModalProps> = ({
 
   const dbModel: DatabaseForm =
     availableDbs?.databases?.find(
-      (available: { engine: string | undefined }) =>
+      (available: { engine: string | undefined, engine_information: any | undefined }) =>
         // TODO: we need a centralized engine in one place
-        available.engine === (isEditMode ? db?.backend : db?.engine),
+        available.engine === (isEditMode ? db?.backend : db?.engine)
+        && available.engine_information?.adapter === db?.engine_information?.adapter
     ) || {};
 
   // Test Connection logic
@@ -721,18 +723,26 @@ const DatabaseModal: FunctionComponent<DatabaseModalProps> = ({
     // Clone DB object
     const dbToUpdate = { ...(db || {}) };
 
+    if (dbToUpdate?.engine === "shillelagh") {
+      // add shillelagh adapter as extra
+      dbToUpdate.extra = JSON.stringify({
+        ...JSON.parse(dbToUpdate.extra || '{}'),
+        adapter: dbToUpdate.engine_information?.adapter,
+      });
+    }
+
+    if (dbToUpdate?.parameters?.catalog) {
+      // need to stringify gsheets catalog to allow it to be serialized
+      dbToUpdate.extra = JSON.stringify({
+        ...JSON.parse(dbToUpdate.extra || '{}'),
+        engine_params: {
+          catalog: dbToUpdate.parameters.catalog,
+        },
+      });
+    }
+
     if (dbToUpdate.configuration_method === CONFIGURATION_METHOD.DYNAMIC_FORM) {
       // Validate DB before saving
-      if (dbToUpdate?.parameters?.catalog) {
-        // need to stringify gsheets catalog to allow it to be serialized
-        dbToUpdate.extra = JSON.stringify({
-          ...JSON.parse(dbToUpdate.extra || '{}'),
-          engine_params: {
-            catalog: dbToUpdate.parameters.catalog,
-          },
-        });
-      }
-
       // make sure that button spinner animates
       setLoading(true);
       const errors = await getValidation(dbToUpdate, true);
@@ -785,16 +795,6 @@ const DatabaseModal: FunctionComponent<DatabaseModalProps> = ({
       if (dbToUpdate.engine === Engines.GSheet) {
         dbToUpdate.impersonate_user = true;
       }
-    }
-
-    if (dbToUpdate?.parameters?.catalog) {
-      // need to stringify gsheets catalog to allow it to be serialized
-      dbToUpdate.extra = JSON.stringify({
-        ...JSON.parse(dbToUpdate.extra || '{}'),
-        engine_params: {
-          catalog: dbToUpdate.parameters.catalog,
-        },
-      });
     }
 
     setLoading(true);
@@ -915,9 +915,9 @@ const DatabaseModal: FunctionComponent<DatabaseModalProps> = ({
   const renderAvailableSelector = () => (
     <div className="available">
       <h4 className="available-label">
-        {t('Or choose from a list of other databases we support:')}
+        {t('Or choose from a list of SQL databases we support:')}
       </h4>
-      <div className="control-label">{t('Supported databases')}</div>
+      <div className="control-label">{t('Supported SQL databases')}</div>
       <AntdSelect
         className="available-select"
         onChange={setDatabaseModel}
@@ -925,6 +925,7 @@ const DatabaseModal: FunctionComponent<DatabaseModalProps> = ({
         showSearch
       >
         {[...(availableDbs?.databases || [])]
+          ?.filter(db => db.engine_type == "database")
           ?.sort((a: DatabaseForm, b: DatabaseForm) =>
             a.name.localeCompare(b.name),
           )
@@ -933,52 +934,7 @@ const DatabaseModal: FunctionComponent<DatabaseModalProps> = ({
               {database.name}
             </AntdSelect.Option>
           ))}
-        {/* Allow users to connect to DB via legacy SQLA form */}
-        <AntdSelect.Option value="Other" key="Other">
-          {t('Other')}
-        </AntdSelect.Option>
       </AntdSelect>
-      <Alert
-        showIcon
-        closable={false}
-        css={(theme: SupersetTheme) => antDAlertStyles(theme)}
-        type="info"
-        message={
-          connectionAlert?.ADD_DATABASE?.message ||
-          t('Want to add a new database?')
-        }
-        description={
-          connectionAlert?.ADD_DATABASE ? (
-            <>
-              {t(
-                'Any databases that allow connections via SQL Alchemy URIs can be added. ',
-              )}
-              <a
-                href={connectionAlert?.ADD_DATABASE.contact_link}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {connectionAlert?.ADD_DATABASE.contact_description_link}
-              </a>{' '}
-              {connectionAlert?.ADD_DATABASE.description}
-            </>
-          ) : (
-            <>
-              {t(
-                'Any databases that allow connections via SQL Alchemy URIs can be added. Learn about how to connect a database driver ',
-              )}
-              <a
-                href={DOCUMENTATION_LINK}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {t('here')}
-              </a>
-              .
-            </>
-          )
-        }
-      />
     </div>
   );
 
@@ -1893,26 +1849,6 @@ const DatabaseModal: FunctionComponent<DatabaseModalProps> = ({
                 />
                 {renderPreferredSelector()}
                 {renderAvailableSelector()}
-                <StyledUploadWrapper>
-                  <Upload
-                    name="databaseFile"
-                    id="databaseFile"
-                    data-test="database-file-input"
-                    accept=".yaml,.json,.yml,.zip"
-                    customRequest={() => {}}
-                    onChange={onDbImport}
-                    onRemove={removeFile}
-                  >
-                    <Button
-                      data-test="import-database-btn"
-                      buttonStyle="link"
-                      type="link"
-                      css={importDbButtonLinkStyles}
-                    >
-                      {t('Import database from file')}
-                    </Button>
-                  </Upload>
-                </StyledUploadWrapper>
                 {importingErrorAlert()}
               </SelectDatabaseStyles>
             ) : (
@@ -1928,38 +1864,6 @@ const DatabaseModal: FunctionComponent<DatabaseModalProps> = ({
                 />
                 {hasAlert && renderStepTwoAlert()}
                 {renderDatabaseConnectionForm()}
-                <div css={(theme: SupersetTheme) => infoTooltip(theme)}>
-                  {dbModel.engine !== Engines.GSheet && (
-                    <>
-                      <Button
-                        data-test="sqla-connect-btn"
-                        buttonStyle="link"
-                        onClick={() =>
-                          setDB({
-                            type: ActionType.configMethodChange,
-                            payload: {
-                              engine: db.engine,
-                              configuration_method:
-                                CONFIGURATION_METHOD.SQLALCHEMY_URI,
-                              database_name: db.database_name,
-                            },
-                          })
-                        }
-                        css={buttonLinkStyles}
-                      >
-                        {t(
-                          'Connect this database with a SQLAlchemy URI string instead',
-                        )}
-                      </Button>
-                      <InfoTooltip
-                        tooltip={t(
-                          'Click this link to switch to an alternate form that allows you to input the SQLAlchemy URL for this database manually.',
-                        )}
-                        viewBox="0 -6 24 24"
-                      />
-                    </>
-                  )}
-                </div>
                 {/* Step 2 */}
                 {showDBError && errorAlert()}
               </>

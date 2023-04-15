@@ -43,6 +43,8 @@ from sqlalchemy.engine.url import URL
 
 from superset import app
 from superset.db_engine_specs.base import BaseEngineSpec
+from superset.db_engine_specs.shillelagh import ShillelaghEngineSpec
+from superset.db_engine_specs.shillelagh_adapters.base import BaseAdapterSpec
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,16 @@ def is_engine_spec(obj: Any) -> bool:
         and obj != BaseEngineSpec
     )
 
+
+def is_shillelagh_adapter(obj: Any) -> bool:
+    """
+    Return true if a given object is a Shillelagh adapter.
+    """
+    return (
+        inspect.isclass(obj)
+        and issubclass(obj, BaseAdapterSpec)
+        and obj != BaseAdapterSpec
+    )
 
 def load_engine_specs() -> List[Type[BaseEngineSpec]]:
     """
@@ -73,6 +85,17 @@ def load_engine_specs() -> List[Type[BaseEngineSpec]]:
             for attr in module.__dict__
             if is_engine_spec(getattr(module, attr))
         )
+    # load shillelagh adapters
+    shillelagh_module_name = "shillelagh_adapters"
+    shillelagh_adapter_dir = str(Path(__file__).parent) + "/" + shillelagh_module_name
+    for module_info in pkgutil.iter_modules([shillelagh_adapter_dir], prefix="."):
+        package = f"{__name__}.{shillelagh_module_name}"
+        module = import_module(module_info.name, package=package)
+        engine_specs.extend(
+            getattr(module, attr)
+            for attr in module.__dict__
+            if is_shillelagh_adapter(getattr(module, attr))
+        )
     # load additional engines from external modules
     for ep in iter_entry_points("superset.db_engine_specs"):
         try:
@@ -85,7 +108,7 @@ def load_engine_specs() -> List[Type[BaseEngineSpec]]:
     return engine_specs
 
 
-def get_engine_spec(backend: str, driver: Optional[str] = None) -> Type[BaseEngineSpec]:
+def get_engine_spec(backend: str, driver: Optional[str] = None, adapter: Optional[str] = None) -> Type[BaseEngineSpec]:
     """
     Return the DB engine spec associated with a given SQLAlchemy URL.
 
@@ -99,8 +122,12 @@ def get_engine_spec(backend: str, driver: Optional[str] = None) -> Type[BaseEngi
 
     if driver is not None:
         for engine_spec in engine_specs:
-            if engine_spec.supports_backend(backend, driver):
-                return engine_spec
+            if adapter is None:
+                if engine_spec.supports_backend(backend, driver):
+                    return engine_spec
+            elif is_shillelagh_adapter(engine_spec):
+                if engine_spec.supports_backend(backend, driver, adapter):
+                    return engine_spec
 
     # check ignoring the driver, in order to support new drivers; this will return a
     # random DB engine spec that supports the engine
@@ -170,16 +197,34 @@ def get_available_engine_specs() -> Dict[Type[BaseEngineSpec], Set[str]]:
     for engine_spec in load_engine_specs():
         driver = drivers[engine_spec.engine]
 
+        # add only allowed shillelagh adapters
+        shillelagh_adapters_allowlist = app.config["SHILLELAGH_ALLOWED_ADAPTERS"]
+
+        # add only allowed db engine specs to available list
+        dbs_allowlist = app.config["DBS_AVAILABLE_ALLOWLIST"]
+        dbs_allowlist_engines = dbs_allowlist.keys()
+
         # do not add denied db engine specs to available list
         dbs_denylist = app.config["DBS_AVAILABLE_DENYLIST"]
         dbs_denylist_engines = dbs_denylist.keys()
 
-        if (
-            engine_spec.engine in dbs_denylist_engines
-            and hasattr(engine_spec, "default_driver")
-            and engine_spec.default_driver in dbs_denylist[engine_spec.engine]
-        ):
-            continue
+        if is_shillelagh_adapter(engine_spec):
+            if engine_spec.adapter not in shillelagh_adapters_allowlist:
+                continue
+        else:
+            if (
+                engine_spec.engine in dbs_denylist_engines
+                and hasattr(engine_spec, "default_driver")
+                and engine_spec.default_driver in dbs_denylist[engine_spec.engine]
+            ) or (
+                engine_spec.engine not in dbs_allowlist_engines
+                or (
+                    engine_spec.engine in dbs_allowlist_engines
+                    and hasattr(engine_spec, "default_driver")
+                    and engine_spec.default_driver not in dbs_allowlist.get(engine_spec.engine, {})
+                )
+            ):
+                continue
 
         # lookup driver by engine aliases.
         if not driver and engine_spec.engine_aliases:
@@ -188,6 +233,7 @@ def get_available_engine_specs() -> Dict[Type[BaseEngineSpec], Set[str]]:
                 if driver:
                     break
 
+        # lookup shillelagh adapters
         available_engines[engine_spec] = driver
 
     return available_engines

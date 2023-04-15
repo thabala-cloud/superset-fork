@@ -14925,7 +14925,7 @@
         ]
       }
     },
-    "/api/v1/database/test_connection/": {
+    "/api/v1/database/test_connectioXXn/": {
       "post": {
         "description": "Tests a database connection",
         "requestBody": {
