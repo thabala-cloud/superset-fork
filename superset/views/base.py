@@ -422,7 +422,7 @@ def cached_common_bootstrap_data(user: User) -> Dict[str, Any]:
 
     # verify client has google sheets installed
     available_specs = get_available_engine_specs()
-    frontend_config["HAS_GSHEETS_INSTALLED"] = bool(available_specs[GSheetsEngineSpec])
+    frontend_config["HAS_GSHEETS_INSTALLED"] = bool(available_specs.get(GSheetsEngineSpec))
 
     bootstrap_data = {
         "conf": frontend_config,

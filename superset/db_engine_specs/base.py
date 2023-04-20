@@ -182,10 +182,12 @@ class BaseEngineSpec:  # pylint: disable=too-many-public-methods
     """
 
     engine_name: Optional[str] = None  # for user messages, overridden in child classes
+    engine_type: str = "database"  # database or api
 
     # These attributes map the DB engine spec to one or more SQLAlchemy dialects/drivers;
     # see the ``supports_url`` and ``supports_backend`` methods below.
     engine = "base"  # str as defined in sqlalchemy.engine.engine
+
     engine_aliases: Set[str] = set()
     drivers: Dict[str, str] = {}
     default_driver: Optional[str] = None
@@ -418,7 +420,7 @@ class BaseEngineSpec:  # pylint: disable=too-many-public-methods
         return cls.supports_backend(backend, driver)
 
     @classmethod
-    def supports_backend(cls, backend: str, driver: Optional[str] = None) -> bool:
+    def supports_backend(cls, backend: str, driver: Optional[str] = None, adapter: Optional[str] = None) -> bool:
         """
         Returns true if the DB engine spec supports a given SQLAlchemy backend/driver.
         """
@@ -431,6 +433,10 @@ class BaseEngineSpec:  # pylint: disable=too-many-public-methods
         # compatibility
         if not cls.drivers or driver is None:
             return True
+
+        # Check sheillagh adapter
+        if hasattr(cls, "adapter"):
+            return cls.adapter == adapter
 
         return driver in cls.drivers
 
@@ -1639,6 +1645,22 @@ class BaseEngineSpec:  # pylint: disable=too-many-public-methods
         except json.JSONDecodeError as ex:
             logger.error(ex, exc_info=True)
             raise ex
+
+    @classmethod
+    def update_encrypted_extra_from_params(  # pylint: disable=invalid-name
+        cls,
+        parameters: BasicParametersType,
+        encrypted_extra: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """
+        Some databases like shillelagh adapters require to populate
+        parameters from encrypted extra
+
+        :param params: params from which to extract parameters
+        :param database: database instance to be updated
+        """
+        return json.dumps(encrypted_extra)
+
 
     @classmethod
     def is_readonly_query(cls, parsed_query: ParsedQuery) -> bool:

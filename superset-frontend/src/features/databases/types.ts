@@ -46,6 +46,7 @@ export type DatabaseObject = {
   database_name: string;
   driver: string;
   engine?: string;
+  adapter?: string
   extra?: string;
   id?: number;
   uuid?: null | string;
@@ -69,6 +70,8 @@ export type DatabaseObject = {
     warehouse?: string;
     role?: string;
     account?: string;
+    owner?: string;
+    repository?: string;
   };
 
   // Performance
@@ -100,6 +103,7 @@ export type DatabaseObject = {
   engine_information?: {
     supports_file_upload?: boolean;
     disable_ssh_tunneling?: boolean;
+    adapter?: string;
   };
 
   // SSH Tunnel information

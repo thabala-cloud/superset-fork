@@ -166,7 +166,7 @@ const ModalHeader = ({
             stepLast: 3,
           })}
         </p>
-        <h4>{t('Select a database to connect')}</h4>
+        <h4>{t('Select a datasource to connect')}</h4>
       </div>
     </StyledFormHeader>
   );

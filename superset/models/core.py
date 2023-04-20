@@ -769,11 +769,12 @@ class Database(
     @property
     def db_engine_spec(self) -> Type[db_engine_specs.BaseEngineSpec]:
         url = make_url_safe(self.sqlalchemy_uri_decrypted)
-        return self.get_db_engine_spec(url)
+        adapter = self.get_extra().get("adapter")
+        return self.get_db_engine_spec(url, adapter)
 
     @classmethod
     @lru_cache(maxsize=LRU_CACHE_MAX_SIZE)
-    def get_db_engine_spec(cls, url: URL) -> Type[db_engine_specs.BaseEngineSpec]:
+    def get_db_engine_spec(cls, url: URL, adapter: Optional[str] = None) -> Type[db_engine_specs.BaseEngineSpec]:
         backend = url.get_backend_name()
         try:
             driver = url.get_driver_name()
@@ -781,7 +782,7 @@ class Database(
             # can't load the driver, fallback for backwards compatibility
             driver = None
 
-        return db_engine_specs.get_engine_spec(backend, driver)
+        return db_engine_specs.get_engine_spec(backend, driver, adapter)
 
     def grains(self) -> Tuple[TimeGrain, ...]:
         """Defines time granularity database-specific expressions.
@@ -795,7 +796,18 @@ class Database(
         return self.db_engine_spec.get_time_grains()
 
     def get_extra(self) -> Dict[str, Any]:
-        return self.db_engine_spec.get_extra_params(self)
+        extra = {}
+        if self.extra:
+            try:
+                extra = json.loads(self.extra)
+            except json.JSONDecodeError as ex:
+                logger.error(ex, exc_info=True)
+                raise ex
+
+        else:
+            extra = self.db_engine_spec.get_extra_params(self)
+
+        return extra
 
     def get_encrypted_extra(self) -> Dict[str, Any]:
         encrypted_extra = {}

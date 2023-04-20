@@ -36,6 +36,16 @@ const FIELD_TEXT_MAP = {
     placeholder: t('e.g. AccountAdmin'),
     className: 'form-group-w-50',
   },
+  owner: {
+    helpText: t('Github account or organization'),
+    placeholder: t('e.g. apache'),
+    className: 'form-group-w-50',
+  },
+  repository: {
+    helpText: t('Git repository'),
+    placeholder: t('e.g. superset'),
+    className: 'form-group-w-50',
+  }
 };
 
 export const validatedInputField = ({

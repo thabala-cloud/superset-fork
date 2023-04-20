@@ -1304,6 +1304,8 @@ class DatabaseRestApi(BaseSupersetModelRestApi):
 
             if engine_spec.default_driver:
                 payload["default_driver"] = engine_spec.default_driver
+            
+            payload["engine_type"] = engine_spec.engine_type
 
             # show configuration parameters for DBs that support it
             if (
