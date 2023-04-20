@@ -589,9 +589,6 @@ const DatabaseModal: FunctionComponent<DatabaseModalProps> = ({
   const dbImages = getDatabaseImages();
   const connectionAlert = getConnectionAlert();
   const isEditMode = !!databaseId;
-  const sslForced = isFeatureEnabled(
-    FeatureFlag.FORCE_DATABASE_CONNECTIONS_SSL,
-  );
   const disableSSHTunnelingForEngine = (
     availableDbs?.databases?.find(
       (DB: DatabaseObject) =>
@@ -1493,7 +1490,7 @@ const DatabaseModal: FunctionComponent<DatabaseModalProps> = ({
       <DatabaseConnectionForm
         isEditMode={isEditMode}
         db={db as DatabaseObject}
-        sslForced={sslForced}
+        sslForced={false}
         dbModel={dbModel}
         onAddTableCatalog={() => {
           setDB({ type: ActionType.addTableCatalogSheet });
