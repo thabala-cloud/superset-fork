@@ -239,6 +239,8 @@ class Database(
             "id": self.id,
             "name": self.database_name,
             "backend": self.backend,
+            "adapter": self.adapter,
+            "connector": self.connector,
             "configuration_method": self.configuration_method,
             "allows_subquery": self.allows_subquery,
             "allows_cost_estimate": self.allows_cost_estimate,
@@ -331,6 +333,18 @@ class Database(
     @property
     def connect_args(self) -> Dict[str, Any]:
         return self.get_extra().get("engine_params", {}).get("connect_args", {})
+
+    @property
+    def adapter(self) -> Optional[str]:
+        return self.get_extra().get("adapter")
+
+    @property
+    def engine_name(self) -> Optional[str]:
+        return self.engine_information.get("engine_name")
+
+    @property
+    def connector(self) -> Optional[str]:
+        return self.engine_name or self.adapter or self.backend
 
     @property
     def engine_information(self) -> Dict[str, Any]:
@@ -770,8 +784,7 @@ class Database(
     @property
     def db_engine_spec(self) -> Type[db_engine_specs.BaseEngineSpec]:
         url = make_url_safe(self.sqlalchemy_uri_decrypted)
-        adapter = self.get_extra().get("adapter")
-        return self.get_db_engine_spec(url, adapter)
+        return self.get_db_engine_spec(url, self.adapter)
 
     @classmethod
     @lru_cache(maxsize=LRU_CACHE_MAX_SIZE)

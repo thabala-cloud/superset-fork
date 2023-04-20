@@ -86,6 +86,7 @@ class GithubAdapterSpec(BaseAdapterSpec):
         """
         return {
             "adapter": cls.adapter,
+            "engine_name": cls.engine_name,
         }
 
     @classmethod

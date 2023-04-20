@@ -30,7 +30,7 @@ class GSheetsAdapterSpec(BaseAdapterSpec):
     """
     Shillelagh google sheets adapter spec
     """
-    engine_name = "Google Sheets API"
+    engine_name = "Google Sheets"
     adapter = "gsheetsapi"
 
     # schema describing the parameters used to configure the adapter
@@ -87,6 +87,7 @@ class GSheetsAdapterSpec(BaseAdapterSpec):
         """
         return {
             "adapter": cls.adapter,
+            "engine_name": cls.engine_name,
         }
 
     @classmethod
