@@ -296,8 +296,8 @@ function DatabaseList({ addDangerToast, addSuccessToast }: DatabaseListProps) {
         Header: t('Database'),
       },
       {
-        accessor: 'backend',
-        Header: t('Backend'),
+        accessor: 'connector',
+        Header: t('Connector'),
         size: 'lg',
         disableSortBy: true, // TODO: api support for sorting by 'backend'
       },
